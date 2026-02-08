@@ -18,10 +18,17 @@ st.set_page_config(
 # Minimal CSS for polish (spacing, typography)
 st.markdown("""
 <style>
+    :root {
+        --accent: #14b8a6;
+        --accent-light: rgba(20, 184, 166, 0.1);
+        --accent-hover: #0d9488;
+    }
+    
     .header-container {
         padding: 5px 0;
         margin-bottom: 20px;
     }
+    
     .status-row {
         display: flex;
         gap: 20px;
@@ -29,23 +36,162 @@ st.markdown("""
         font-size: 0.85rem;
         color: #bbb;
     }
-    .kpi-card {
-        padding: 20px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        border-left: 4px solid #0d7377;
-    }
+    
     .section-title {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin: 25px 0 15px 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: 32px 0 20px 0;
         color: #ffffff;
+        letter-spacing: -0.3px;
+        border-left: 3px solid var(--accent);
+        padding-left: 12px;
     }
+    
     h1, h2, h3 {
         color: #ffffff !important;
+        font-weight: 700;
     }
+    
+    h1 {
+        font-size: 2.5rem !important;
+        margin-bottom: 8px !important;
+        letter-spacing: -1px;
+    }
+    
     p, span, div, button {
         color: #ffffff !important;
+    }
+    
+    /* Metric Cards - Enhanced */
+    [data-testid="metric-container"] {
+        background: linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgba(20, 184, 166, 0.02) 100%) !important;
+        border: 1px solid rgba(20, 184, 166, 0.2) !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        transition: all 0.3s cubic-bezier(0.2, 0.8, 0.4, 1) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    [data-testid="metric-container"]:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 24px rgba(20, 184, 166, 0.25) !important;
+        border-color: var(--accent) !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: var(--accent) !important;
+        font-weight: 800 !important;
+        font-size: 1.8rem !important;
+        letter-spacing: -1px;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #aaa !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Buttons */
+    .stButton button {
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%) !important;
+        color: white !important;
+        border: none !important;
+        font-weight: 700 !important;
+        padding: 10px 20px !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 12px rgba(20, 184, 166, 0.2) !important;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(20, 184, 166, 0.4) !important;
+    }
+    
+    .stButton button:active {
+        transform: translateY(0) !important;
+    }
+    
+    /* Checkboxes & Inputs */
+    .stCheckbox {
+        margin: 10px 0 !important;
+    }
+    
+    .stCheckbox label {
+        font-weight: 500 !important;
+    }
+    
+    /* Expanders */
+    [data-testid="stExpander"] {
+        background: rgba(20, 184, 166, 0.05) !important;
+        border: 1px solid rgba(20, 184, 166, 0.15) !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        margin-bottom: 12px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    [data-testid="stExpander"]:hover {
+        border-color: var(--accent) !important;
+        box-shadow: 0 2px 8px rgba(20, 184, 166, 0.1) !important;
+    }
+    
+    [data-testid="stExpander"] button {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Sidebar */
+    .stSidebar {
+        background-color: #0f1419 !important;
+        border-right: 1px solid rgba(20, 184, 166, 0.1) !important;
+    }
+    
+    /* Data tables */
+    .stDataFrame {
+        background: rgba(20, 184, 166, 0.03) !important;
+        border: 1px solid rgba(20, 184, 166, 0.1) !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Sliders */
+    .stSlider {
+        margin: 12px 0 !important;
+    }
+    
+    .stSlider [role="slider"] {
+        accent-color: var(--accent) !important;
+    }
+    
+    /* Plotly Charts - Animation */
+    .plotly {
+        animation: fadeIn 0.6s ease-in-out !important;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Clean dividers */
+    hr {
+        border: none !important;
+        border-top: 1px solid rgba(20, 184, 166, 0.1) !important;
+        margin: 24px 0 !important;
+    }
+    
+    /* Success/info messages */
+    .stSuccess, .stInfo, .stWarning {
+        border-left: 4px solid var(--accent) !important;
+        border-radius: 4px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -113,12 +259,15 @@ st.sidebar.markdown("### 🎛️ Control Center")
 
 # --- Data Controls ---
 with st.sidebar.expander("📂 **Data Controls**", expanded=True):
-    if st.button("🔄 Reload Data", use_container_width=True, key="reload_btn"):
-        st.cache_data.clear()
-        st.rerun()
+    reload_col = st.columns(1)[0]
+    with reload_col:
+        if st.button("🔄 Reload Data", use_container_width=True, key="reload_btn"):
+            st.cache_data.clear()
+            st.rerun()
     
     file_status = "✅ Found" if DATA_FILE.exists() else "❌ Missing"
     st.caption(f"File status: {file_status}")
+    st.markdown("")
 
 # --- Filters ---
 st.sidebar.markdown("")
@@ -369,15 +518,64 @@ with col_chart:
                     title=f"{y_axis} by {x_axis}"
                 )
             
-            # Polish chart formatting
-            fig.update_layout(
-                hovermode="x unified",
-                showlegend=True,
-                font=dict(size=11),
-                margin=dict(l=0, r=0, t=40, b=0)
-            )
+            # Polish chart formatting with modern styling
+            layout_config = {
+                "showlegend": True,
+                "font": dict(size=11, family="Source Sans Pro"),
+                "margin": dict(l=0, r=0, t=40, b=0),
+                "plot_bgcolor": "rgba(0,0,0,0)",
+                "paper_bgcolor": "rgba(0,0,0,0)",
+                "transition": dict(duration=500, easing="cubic-in-out")
+            }
             
-            st.plotly_chart(fig, use_container_width=True)
+            # Set chart-specific title
+            if chart_type == "Pie":
+                layout_config["title"] = dict(
+                    text=f"{y_axis} Distribution",
+                    font=dict(size=14, color="#ffffff", family="Source Sans Pro")
+                )
+                layout_config["hovermode"] = "closest"
+            else:
+                layout_config["title"] = dict(
+                    text=f"{y_axis} by {x_axis}",
+                    font=dict(size=14, color="#ffffff", family="Source Sans Pro")
+                )
+                layout_config["hovermode"] = "x unified"
+                layout_config["xaxis"] = dict(
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor="rgba(20, 184, 166, 0.1)",
+                    zeroline=False
+                )
+                layout_config["yaxis"] = dict(
+                    showgrid=True,
+                    gridwidth=1,
+                    gridcolor="rgba(20, 184, 166, 0.1)",
+                    zeroline=False
+                )
+            
+            fig.update_layout(**layout_config)
+            
+            # Apply accent color to traces based on chart type
+            if chart_type == "Pie":
+                # For pie charts, only set marker border
+                fig.update_traces(marker=dict(line=dict(color="rgba(13, 148, 136, 0.5)", width=2)))
+            elif chart_type in ["Bar"]:
+                # For bar charts, use marker color
+                fig.update_traces(marker=dict(color="#14b8a6", line=dict(color="#0d9488", width=0.5)))
+            elif chart_type in ["Line", "Area"]:
+                # For line/area charts, use line color and fill
+                fig.update_traces(
+                    line=dict(color="#14b8a6", width=2),
+                    fillcolor="rgba(20, 184, 166, 0.2)"
+                )
+            elif chart_type == "Scatter":
+                # For scatter, use marker
+                fig.update_traces(
+                    marker=dict(color="#14b8a6", size=8, line=dict(color="#0d9488", width=1))
+                )
+            
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
         
         except Exception as e:
             st.error(f"Error creating chart: {e}")
