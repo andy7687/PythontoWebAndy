@@ -129,24 +129,40 @@ with st.sidebar.expander("🔍 **Filters**", expanded=True):
     categorical_cols = get_categorical_columns(filtered_df)
     if "Product" in categorical_cols:
         products = sorted(filtered_df["Product"].dropna().astype(str).unique().tolist())
-        selected_products = st.multiselect(
-            "Product",
-            options=products,
-            default=products,
-            key="product_filter"
-        )
+        selected_products = []
+        
+        st.write("**📦 Products**")
+        cols = st.columns(2)  # 2 columns for compact layout
+        for i, product in enumerate(products):
+            with cols[i % 2]:
+                if st.checkbox(product, value=True, key=f"prod_{product}"):
+                    selected_products.append(product)
+        
+        # If none selected, select all by default
+        if not selected_products:
+            selected_products = products
+            st.info("No products selected. Showing all.")
+        
         filtered_df = filtered_df[filtered_df["Product"].astype(str).isin(selected_products)]
+        st.markdown("")  # Add spacing
     elif categorical_cols:
         # Fallback to first categorical column
         default_cat = categorical_cols[0]
         categories = sorted(filtered_df[default_cat].dropna().astype(str).unique().tolist())
-        selected_cats = st.multiselect(
-            default_cat,
-            options=categories,
-            default=categories,
-            key="category_filter"
-        )
+        selected_cats = []
+        
+        st.write(f"**{default_cat}**")
+        cols = st.columns(2)
+        for i, cat in enumerate(categories):
+            with cols[i % 2]:
+                if st.checkbox(cat, value=True, key=f"cat_{cat}"):
+                    selected_cats.append(cat)
+        
+        if not selected_cats:
+            selected_cats = categories
+        
         filtered_df = filtered_df[filtered_df[default_cat].astype(str).isin(selected_cats)]
+        st.markdown("")  # Add spacing
     
     # Numeric range filters
     numeric_cols = get_numeric_columns(filtered_df)
