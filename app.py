@@ -202,12 +202,21 @@ st.markdown("""
 DATA_FILE = Path("data.xlsx")
 
 @st.cache_data(show_spinner="Loading Excel data...")
-def load_data(file_path: Path) -> pd.DataFrame:
+def load_data(file_path: Path, cache_version: int = 2) -> pd.DataFrame:
     """Load Excel file and return DataFrame."""
     if not file_path.exists():
         return pd.DataFrame()
     try:
         df = pd.read_excel(file_path)
+        
+        # Automatically detect and parse date columns
+        for col in df.columns:
+            if 'date' in col.lower() or 'time' in col.lower():
+                try:
+                    df[col] = pd.to_datetime(df[col])
+                except:
+                    pass
+        
         return df
     except Exception as e:
         st.error(f"Error loading Excel: {e}")
@@ -470,53 +479,114 @@ with col_chart:
     if validation_error:
         st.warning(validation_error)
     else:
-        # Build chart based on selection
-        chart_df = filtered_df.copy()
+        # Check if Date column exists for toggle
+        date_cols = filtered_df.select_dtypes(include=['datetime64']).columns.tolist()
+        has_date_col = len(date_cols) > 0
         
-        if sort_desc and y_axis in numeric_cols:
-            chart_df = chart_df.sort_values(by=y_axis, ascending=False)
+        # --- Chart View Toggle ---
+        if has_date_col and y_axis in numeric_cols:
+            view_mode_index = st.radio(
+                "View by:",
+                options=[0, 1],
+                format_func=lambda x: ["📈 By Time Period", "📦 By Product"][x],
+                horizontal=True,
+                label_visibility="collapsed",
+                key="main_chart_toggle"
+            )
+        else:
+            view_mode_index = 0
         
         try:
-            if chart_type == "Bar":
-                fig = px.bar(
-                    chart_df,
-                    x=x_axis,
-                    y=y_axis,
-                    title=f"{y_axis} by {x_axis}",
-                    labels={y_axis: y_axis, x_axis: x_axis}
-                )
-            elif chart_type == "Line":
-                fig = px.line(
-                    chart_df,
-                    x=x_axis,
-                    y=y_axis,
-                    markers=True,
-                    title=f"{y_axis} over {x_axis}",
-                    labels={y_axis: y_axis, x_axis: x_axis}
-                )
-            elif chart_type == "Area":
-                fig = px.area(
-                    chart_df,
-                    x=x_axis,
-                    y=y_axis,
-                    title=f"{y_axis} by {x_axis}",
-                    labels={y_axis: y_axis, x_axis: x_axis}
-                )
-            elif chart_type == "Scatter":
-                fig = px.scatter(
-                    chart_df,
-                    x=x_axis,
-                    y=y_axis,
-                    title=f"{y_axis} vs {x_axis}",
-                    labels={y_axis: y_axis, x_axis: x_axis}
-                )
-            elif chart_type == "Pie":
-                fig = px.pie(
-                    chart_df,
-                    names=x_axis,
-                    values=y_axis,
-                    title=f"{y_axis} by {x_axis}"
-                )
+            if view_mode_index == 0 and has_date_col:
+                # Time-based view: X-axis is dates, Y-axis is sales
+                date_col = date_cols[0]
+                time_df = filtered_df[[date_col, y_axis]].sort_values(date_col)
+                
+                if chart_type == "Bar":
+                    fig = px.bar(
+                        time_df,
+                        x=date_col,
+                        y=y_axis,
+                        title=f"{y_axis} Over Time",
+                        labels={y_axis: y_axis, date_col: "Date"}
+                    )
+                elif chart_type == "Line":
+                    fig = px.line(
+                        time_df,
+                        x=date_col,
+                        y=y_axis,
+                        markers=True,
+                        title=f"{y_axis} Over Time",
+                        labels={y_axis: y_axis, date_col: "Date"}
+                    )
+                elif chart_type == "Area":
+                    fig = px.area(
+                        time_df,
+                        x=date_col,
+                        y=y_axis,
+                        title=f"{y_axis} Over Time",
+                        labels={y_axis: y_axis, date_col: "Date"}
+                    )
+                elif chart_type == "Scatter":
+                    fig = px.scatter(
+                        time_df,
+                        x=date_col,
+                        y=y_axis,
+                        title=f"{y_axis} Over Time",
+                        labels={y_axis: y_axis, date_col: "Date"}
+                    )
+                else:  # Pie
+                    fig = px.bar(
+                        time_df,
+                        x=date_col,
+                        y=y_axis,
+                        title=f"{y_axis} Over Time",
+                        labels={y_axis: y_axis, date_col: "Date"}
+                    )
+            else:
+                # By Product view: X-axis is product, Y-axis is summed sales
+                product_df = filtered_df.groupby("Product")[y_axis].sum().sort_values(ascending=False).reset_index()
+                
+                if chart_type == "Bar":
+                    fig = px.bar(
+                        product_df,
+                        x="Product",
+                        y=y_axis,
+                        title=f"{y_axis} by Product",
+                        labels={y_axis: y_axis, "Product": "Product"}
+                    )
+                elif chart_type == "Line":
+                    fig = px.line(
+                        product_df,
+                        x="Product",
+                        y=y_axis,
+                        markers=True,
+                        title=f"{y_axis} by Product",
+                        labels={y_axis: y_axis, "Product": "Product"}
+                    )
+                elif chart_type == "Area":
+                    fig = px.area(
+                        product_df,
+                        x="Product",
+                        y=y_axis,
+                        title=f"{y_axis} by Product",
+                        labels={y_axis: y_axis, "Product": "Product"}
+                    )
+                elif chart_type == "Scatter":
+                    fig = px.scatter(
+                        product_df,
+                        x="Product",
+                        y=y_axis,
+                        title=f"{y_axis} by Product",
+                        labels={y_axis: y_axis, "Product": "Product"}
+                    )
+                else:  # Pie
+                    fig = px.pie(
+                        product_df,
+                        names="Product",
+                        values=y_axis,
+                        title=f"{y_axis} by Product"
+                    )
             
             # Polish chart formatting with modern styling
             layout_config = {
@@ -528,7 +598,7 @@ with col_chart:
                 "transition": dict(duration=500, easing="cubic-in-out")
             }
             
-            # Set chart-specific title
+            # Set chart-specific title and axis labels based on view
             if chart_type == "Pie":
                 layout_config["title"] = dict(
                     text=f"{y_axis} Distribution",
@@ -536,8 +606,11 @@ with col_chart:
                 )
                 layout_config["hovermode"] = "closest"
             else:
+                # Determine axis label based on view mode
+                x_label = "Date" if view_mode_index == 0 else "Product"
+                
                 layout_config["title"] = dict(
-                    text=f"{y_axis} by {x_axis}",
+                    text=f"{y_axis} by {x_label}",
                     font=dict(size=14, color="#ffffff", family="Source Sans Pro")
                 )
                 layout_config["hovermode"] = "x unified"
@@ -581,42 +654,192 @@ with col_chart:
             st.error(f"Error creating chart: {e}")
 
 # ============================================================================
-# SUMMARY STATISTICS
+# SUMMARY STATISTICS - TIME-BASED INSIGHTS
 # ============================================================================
-st.markdown('<h3 class="section-title">📈 Summary Statistics</h3>', unsafe_allow_html=True)
+st.markdown('<h3 class="section-title">📈 Time-Based Insights</h3>', unsafe_allow_html=True)
 
-if numeric_cols:
-    # Show describe() for the y-axis if it's numeric
-    if y_axis in numeric_cols:
-        stats_col, dist_col = st.columns([1, 1])
-        
-        with stats_col:
-            st.write(f"**{y_axis} - Descriptive Statistics**")
-            st.dataframe(
-                filtered_df[y_axis].describe().to_frame(),
-                use_container_width=True
-            )
-        
-        with dist_col:
-            st.write(f"**{y_axis} - Distribution**")
-            hist_fig = px.histogram(
-                filtered_df,
-                x=y_axis,
-                nbins=30,
-                title=f"{y_axis} Distribution",
-                labels={y_axis: y_axis}
-            )
-            hist_fig.update_layout(showlegend=False, margin=dict(l=0, r=0, t=30, b=0))
-            st.plotly_chart(hist_fig, use_container_width=True)
+# Check if Date column exists
+date_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
+has_date = len(date_cols) > 0
+
+if has_date and y_axis in numeric_cols:
+    date_col = date_cols[0]
+    analysis_df = filtered_df.copy()
     
-    # Additional numeric columns summary
-    other_numeric = [c for c in numeric_cols if c != y_axis]
-    if other_numeric:
-        with st.expander(f"More columns: {', '.join(other_numeric)}", expanded=False):
-            summary_stats = filtered_df[numeric_cols].describe()
-            st.dataframe(summary_stats, use_container_width=True)
+    if len(analysis_df) > 0:
+        # --- Trend Analysis ---
+        trend_col, growth_col = st.columns([1, 1])
+        
+        with trend_col:
+            st.write("**📊 Trend Analysis**")
+            # Calculate trend - first half vs second half
+            mid_point = len(analysis_df) // 2
+            first_half_avg = analysis_df[y_axis].iloc[:mid_point].mean()
+            second_half_avg = analysis_df[y_axis].iloc[mid_point:].mean()
+            trend_change = ((second_half_avg - first_half_avg) / first_half_avg) * 100 if first_half_avg != 0 else 0
+            
+            if trend_change > 0:
+                trend_indicator = f"📈 **+{trend_change:.1f}%** Uptrend"
+                trend_color = "green"
+            elif trend_change < 0:
+                trend_indicator = f"📉 **{trend_change:.1f}%** Downtrend"
+                trend_color = "red"
+            else:
+                trend_indicator = "➡️ **Stable** (No trend)"
+                trend_color = "blue"
+            
+            st.metric(label="Overall Trend", value=trend_indicator, delta=f"Period-over-period")
+            st.caption(f"Early avg: {first_half_avg:,.0f} → Recent avg: {second_half_avg:,.0f}")
+        
+        with growth_col:
+            st.write("**💹 Growth Metrics**")
+            # Calculate growth rate
+            earliest_value = analysis_df[y_axis].iloc[0]
+            latest_value = analysis_df[y_axis].iloc[-1]
+            total_growth = ((latest_value - earliest_value) / earliest_value) * 100 if earliest_value != 0 else 0
+            
+            st.metric(label="Overall Growth", value=f"{total_growth:+.1f}%", delta=f"First to last record")
+            st.caption(f"Start: {earliest_value:,.0f} → End: {latest_value:,.0f}")
+        
+        # --- Peak vs Average Analysis ---
+        st.write("**🎯 Peak vs Average Analysis**")
+        peak_value = analysis_df[y_axis].max()
+        peak_product = str(analysis_df.loc[analysis_df[y_axis].idxmax(), x_axis]) if x_axis in analysis_df.columns else "N/A"
+        avg_value = analysis_df[y_axis].mean()
+        peak_vs_avg = ((peak_value - avg_value) / avg_value) * 100 if avg_value != 0 else 0
+        
+        peak_col, avg_col, variance_col = st.columns(3)
+        
+        with peak_col:
+            st.metric(label="Peak Value", value=f"{peak_value:,.0f}", delta=peak_product)
+        
+        with avg_col:
+            st.metric(label="Average Value", value=f"{avg_value:,.0f}")
+        
+        with variance_col:
+            st.metric(label="Peak vs Avg", value=f"+{peak_vs_avg:.1f}%")
+        
+        # --- View Toggle for Trend Chart ---
+        st.write("**📊 Visualization View**")
+        stats_view_index = st.radio(
+            "Choose view:",
+            options=[0, 1],
+            format_func=lambda x: ["📉 By Time Period", "📦 By Product"][x],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="stats_view_toggle"
+        )
+        
+        if stats_view_index == 0:
+            # --- Time Series Trend Line ---
+            trend_df = analysis_df[[date_col, y_axis]].sort_values(date_col)
+            
+            # Create trend chart
+            trend_fig = px.line(
+                trend_df,
+                x=date_col,
+                y=y_axis,
+                markers=True,
+                title=f"{y_axis} Over Time",
+                labels={y_axis: y_axis, date_col: "Date"}
+            )
+            
+            # Add trendline
+            trend_fig.add_scatter(
+                x=trend_df[date_col],
+                y=trend_df[y_axis].rolling(window=min(3, len(trend_df))).mean(),
+                mode='lines',
+                name='Trend',
+                line=dict(color='rgba(20, 184, 166, 0.5)', dash='dash', width=2)
+            )
+            
+            trend_fig.update_layout(
+                hovermode="x unified",
+                font=dict(size=11, family="Source Sans Pro"),
+                margin=dict(l=0, r=0, t=40, b=0),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                title=dict(text=f"{y_axis} Over Time", font=dict(size=14, color="#ffffff", family="Source Sans Pro")),
+                xaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+                yaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+                transition=dict(duration=500, easing="cubic-in-out")
+            )
+            
+            trend_fig.update_traces(
+                marker=dict(color="#14b8a6", size=8, line=dict(color="#0d9488", width=1)),
+                line=dict(color="#14b8a6", width=2),
+                selector=dict(mode='lines+markers')
+            )
+            
+            st.plotly_chart(trend_fig, use_container_width=True, config={"displayModeBar": False})
+        
+        else:  # By Product view
+            # Create product comparison chart - group by Product, not x_axis
+            product_df = analysis_df.groupby("Product")[y_axis].sum().sort_values(ascending=False).reset_index()
+            
+            product_fig = px.bar(
+                product_df,
+                x="Product",
+                y=y_axis,
+                title=f"{y_axis} by Product",
+                labels={y_axis: y_axis, "Product": "Product"}
+            )
+            
+            product_fig.update_layout(
+                hovermode="x unified",
+                font=dict(size=11, family="Source Sans Pro"),
+                margin=dict(l=0, r=0, t=40, b=0),
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                title=dict(text=f"{y_axis} by {x_axis}", font=dict(size=14, color="#ffffff", family="Source Sans Pro")),
+                xaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+                yaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+                transition=dict(duration=500, easing="cubic-in-out")
+            )
+            
+            product_fig.update_traces(
+                marker=dict(color="#14b8a6", line=dict(color="#0d9488", width=0.5))
+            )
+            
+            st.plotly_chart(product_fig, use_container_width=True, config={"displayModeBar": False})
+        
+        
+        # --- Distribution Analysis ---
+        with st.expander("📊 Detailed Statistics & Distribution", expanded=False):
+            stat_col, dist_col = st.columns([1, 1])
+            
+            with stat_col:
+                st.write(f"**{y_axis} - Descriptive Statistics**")
+                st.dataframe(
+                    analysis_df[y_axis].describe().to_frame(),
+                    use_container_width=True
+                )
+            
+            with dist_col:
+                st.write(f"**{y_axis} - Distribution**")
+                hist_fig = px.histogram(
+                    analysis_df,
+                    x=y_axis,
+                    nbins=20,
+                    title=f"{y_axis} Distribution",
+                    labels={y_axis: y_axis}
+                )
+                hist_fig.update_layout(
+                    showlegend=False,
+                    margin=dict(l=0, r=0, t=30, b=0),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    font=dict(color="#ffffff")
+                )
+                hist_fig.update_traces(marker=dict(color="#14b8a6", line=dict(color="#0d9488", width=1)))
+                st.plotly_chart(hist_fig, use_container_width=True, config={"displayModeBar": False})
+    else:
+        st.info("No data to analyze. Adjust your filters.")
 else:
-    st.info("No numeric columns to summarize.")
+    if not has_date:
+        st.info("📅 A Date column is required for time-based insights. Data has been updated with dates!")
+    elif y_axis not in numeric_cols:
+        st.info("📊 Select a numeric column as Y-axis for time-based analysis.")
 
 # ============================================================================
 # FOOTER: ROW COUNT
