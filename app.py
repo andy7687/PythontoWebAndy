@@ -434,6 +434,95 @@ else:
         st.metric(label="Unique X Values", value=filtered_df[x_axis].nunique())
 
 # ============================================================================
+# SALES UNITS & COST ANALYSIS
+# ============================================================================
+if "Units of Sale" in filtered_df.columns and "Cost per Unit" in filtered_df.columns:
+    st.markdown('<h3 class="section-title">📦 Units & Cost Analysis</h3>', unsafe_allow_html=True)
+    
+    units_data = filtered_df["Units of Sale"].astype(float)
+    cost_data = filtered_df["Cost per Unit"].astype(float)
+    
+    # Units of Sale Metrics
+    st.write("**Units of Sale Summary**")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            label="Total Units Sold",
+            value=f"{units_data.sum():,.0f}",
+            help="Total quantity of all units sold"
+        )
+    
+    with col2:
+        st.metric(
+            label="Avg Units/Sale",
+            value=f"{units_data.mean():,.0f}",
+            help="Average units per transaction"
+        )
+    
+    with col3:
+        st.metric(
+            label="Max Units",
+            value=f"{units_data.max():,.0f}",
+            help="Highest units in single transaction"
+        )
+    
+    with col4:
+        st.metric(
+            label="Min Units",
+            value=f"{units_data.min():,.0f}",
+            help="Lowest units in single transaction"
+        )
+    
+    # Cost per Unit Metrics
+    st.write("**Cost per Unit Summary**")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            label="Avg Cost/Unit",
+            value=f"${cost_data.mean():,.2f}",
+            help="Average price per unit across all sales"
+        )
+    
+    with col2:
+        st.metric(
+            label="Max Cost/Unit",
+            value=f"${cost_data.max():,.2f}",
+            help="Highest unit price"
+        )
+    
+    with col3:
+        st.metric(
+            label="Min Cost/Unit",
+            value=f"${cost_data.min():,.2f}",
+            help="Lowest unit price"
+        )
+    
+    with col4:
+        total_revenue = filtered_df["Sales"].sum()
+        total_units = units_data.sum()
+        blended_cost = total_revenue / total_units if total_units > 0 else 0
+        st.metric(
+            label="Blended Cost/Unit",
+            value=f"${blended_cost:,.2f}",
+            help="Overall average (Total Sales / Total Units)"
+        )
+    
+    # Product-level analysis
+    st.write("**Product-Level Breakdown**")
+    product_analysis = filtered_df.groupby("Product").agg({
+        "Sales": "sum",
+        "Units of Sale": "sum",
+        "Cost per Unit": "mean"
+    }).round(2)
+    product_analysis.columns = ["Total Sales", "Total Units", "Avg Cost/Unit"]
+    product_analysis["Avg Price/Unit"] = (product_analysis["Total Sales"] / product_analysis["Total Units"]).round(2)
+    product_analysis = product_analysis.sort_values("Total Sales", ascending=False)
+    
+    st.dataframe(product_analysis, use_container_width=True)
+
+# ============================================================================
 # MAIN CONTENT: DATA PREVIEW + CHART (2-COLUMN LAYOUT)
 # ============================================================================
 st.markdown('<h3 class="section-title">📋 Data & Visualization</h3>', unsafe_allow_html=True)
@@ -652,6 +741,93 @@ with col_chart:
         
         except Exception as e:
             st.error(f"Error creating chart: {e}")
+
+# ============================================================================
+# UNITS & COST VISUALIZATION
+# ============================================================================
+if "Units of Sale" in filtered_df.columns and "Cost per Unit" in filtered_df.columns:
+    st.markdown('<h3 class="section-title">📊 Units vs Cost Analysis</h3>', unsafe_allow_html=True)
+    
+    viz_col1, viz_col2 = st.columns([1, 1.2])
+    
+    with viz_col1:
+        st.subheader("Units by Product")
+        product_units = filtered_df.groupby("Product")["Units of Sale"].sum().sort_values(ascending=False)
+        
+        units_fig = px.bar(
+            x=product_units.values,
+            y=product_units.index,
+            orientation='h',
+            title="Total Units Sold by Product",
+            labels={"x": "Units", "y": "Product"}
+        )
+        
+        units_fig.update_layout(
+            font=dict(size=11, family="Source Sans Pro"),
+            margin=dict(l=0, r=0, t=40, b=0),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            title=dict(text="Total Units Sold by Product", font=dict(size=14, color="#ffffff", family="Source Sans Pro")),
+            xaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+            yaxis=dict(showgrid=False),
+            hovermode="y unified"
+        )
+        
+        units_fig.update_traces(marker=dict(color="#14b8a6", line=dict(color="#0d9488", width=0.5)))
+        st.plotly_chart(units_fig, use_container_width=True, config={"displayModeBar": False})
+    
+    with viz_col2:
+        st.subheader("Cost per Unit Analysis")
+        product_cost = filtered_df.groupby("Product")["Cost per Unit"].mean().sort_values(ascending=False)
+        
+        cost_fig = px.bar(
+            x=product_cost.index,
+            y=product_cost.values,
+            title="Average Cost per Unit by Product",
+            labels={"x": "Product", "y": "Cost per Unit ($)"}
+        )
+        
+        cost_fig.update_layout(
+            font=dict(size=11, family="Source Sans Pro"),
+            margin=dict(l=0, r=0, t=40, b=0),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            title=dict(text="Average Cost per Unit by Product", font=dict(size=14, color="#ffffff", family="Source Sans Pro")),
+            xaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+            yaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+            hovermode="x unified"
+        )
+        
+        cost_fig.update_traces(marker=dict(color="#14b8a6", line=dict(color="#0d9488", width=0.5)))
+        st.plotly_chart(cost_fig, use_container_width=True, config={"displayModeBar": False})
+    
+    # Scatter plot: Sales vs Units
+    st.subheader("Sales Revenue vs Units Sold")
+    scatter_fig = px.scatter(
+        filtered_df,
+        x="Units of Sale",
+        y="Sales",
+        color="Product",
+        size="Cost per Unit",
+        hover_data={"Date": True},
+        title="Sales by Units Sold (size = Cost per Unit)",
+        labels={"Units of Sale": "Units Sold", "Sales": "Revenue ($)"}
+    )
+    
+    scatter_fig.update_layout(
+        font=dict(size=11, family="Source Sans Pro"),
+        margin=dict(l=0, r=0, t=40, b=0),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        title=dict(text="Sales by Units Sold (size = Cost per Unit)", font=dict(size=14, color="#ffffff", family="Source Sans Pro")),
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+        yaxis=dict(showgrid=True, gridwidth=1, gridcolor="rgba(20, 184, 166, 0.1)"),
+        hovermode="closest",
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+    )
+    
+    scatter_fig.update_traces(marker=dict(line=dict(color="#0d9488", width=1)))
+    st.plotly_chart(scatter_fig, use_container_width=True, config={"displayModeBar": False})
 
 # ============================================================================
 # SUMMARY STATISTICS - TIME-BASED INSIGHTS
